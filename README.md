@@ -1,7 +1,7 @@
-stm32f723iec stratify 
+[StratifyOs](https://github.com/StratifyLabs/StratifyOS) examples
 =====================
 
-##Board description
+##Board description stm32f723iec
     *external flash use - MX25L51245G from macronix(512 mbit - 64 mbyte) is connected
     to Quad-SPI interface of STM32F723IEK6.
     *external ram use - IS66WV51216EBLL-55BLI from Integrated Silicon Solution Inc
