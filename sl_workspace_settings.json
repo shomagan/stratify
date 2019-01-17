@@ -1,0 +1,86 @@
+{
+   "creationDate": {
+      "year": 2018,
+      "month": 12,
+      "day": 26,
+      "hour": 12,
+      "minute": 26,
+      "second": 43,
+      "tz": "gmt",
+      "time": 1545827203
+   },
+   "interactive": "false",
+   "silent": "false",
+   "json": "false",
+   "apiGitHash": "1d89956",
+   "gitHash": "a5fd14f",
+   "apiVersion": "3.8.0b",
+   "date": {
+      "year": 2019,
+      "month": 1,
+      "day": 2,
+      "hour": 13,
+      "minute": 29,
+      "second": 49,
+      "tz": "gmt",
+      "time": 1546435789
+   },
+   "version": "0.10",
+   "uid": "TjLLAEC0UVY6Mx1oSNS749t75Wl2",
+   "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjBmNzM4YTUyYTJjZTlmMzE3MjBhNjdhYjFjY2E4ZTM3OGVkMTBkMTIiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL3NlY3VyZXRva2VuLmdvb2dsZS5jb20vc3RyYXRpZnlsYWJzIiwibmFtZSI6InNob21hZ2FuIiwicGljdHVyZSI6Imh0dHBzOi8vYXZhdGFyczMuZ2l0aHVidXNlcmNvbnRlbnQuY29tL3UvNTE0NjEzOT92PTQiLCJhdWQiOiJzdHJhdGlmeWxhYnMiLCJhdXRoX3RpbWUiOjE1NDU4MjcyNzIsInVzZXJfaWQiOiJUakxMQUVDMFVWWTZNeDFvU05TNzQ5dDc1V2wyIiwic3ViIjoiVGpMTEFFQzBVVlk2TXgxb1NOUzc0OXQ3NVdsMiIsImlhdCI6MTU0NjQzNDQ4NSwiZXhwIjoxNTQ2NDM4MDg1LCJlbWFpbCI6InNob21hZ2FuQGdtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjpmYWxzZSwiZmlyZWJhc2UiOnsiaWRlbnRpdGllcyI6eyJnaXRodWIuY29tIjpbIjUxNDYxMzkiXSwiZW1haWwiOlsic2hvbWFnYW5AZ21haWwuY29tIl19LCJzaWduX2luX3Byb3ZpZGVyIjoiZ2l0aHViLmNvbSJ9fQ.pWJ1MLaCAVqmeXeS24LMexJ9SOsH2ta0mLrAKoKQFNwTKRzcXDyLrfl_JcQkJ8DogedanlRjru6g3wRPJOqdLUiO3uHLCjgqv3bbMp83s38bn9HF6D-3GfA0SBFlVMVOVLI3xZQQ3BDYIaYAdHUAfPK4032wYUkYmE7UBhfxgfGJdJIB4zpFmk1NkxbMnRk24eCnx13BkCVQxQw1EFQQ1RHUabWOz2p4fzXPx59j3f5_17x_pFRngR2VdSx7XwBdsaz6DjPBtBpBa7e3tCzqZtahtbp13blpNk4sGfdtjmH9Z1MWc3lcGG3Z1aGZ5tyH7PLks-3PYwG6lgc4fg2Hng",
+   "refreshToken": "AGK09ANoSUIFjBxNTSrmJTiduTXfQARtFJkvkDIouNdl3v9Ym1CHr7SIYa79G4dKtajoIkzkgMBmsy-8B7sZ9WGp7QLkLQ2yd2mgWh9oxD5N0M-kW_9vdEQxYVuW7suLOxRdlzn8l7TQGpsNh_hxjGGFKToegJ_JAiUtgGNVAu8foxD7GFWG3tSwFRy3IpPtXAAB1yssYiBHUPdK7V9_4EwHvzY95TiitzmjM_dEmD_UydEOlU6QEF-W79jH_ib9YTbwbAPFw8pckpX1BWJJIyWWN2W_9bplTbD8hM4mrRDi5UDKlzaJN9g",
+   "tokenTimestamp": 1546434267,
+   "cloudSettings": {
+      "installMacOsX": "curl -L -o /Applications/StratifyLabs-SDK/Tools/gcc/bin/sl 'https://stratifylabs.page.link/slmac'",
+      "downloadCMakeMacOsX": "https://stratifylabs.co/files/sl/macosx/cmake.zip",
+      "downloadSdkMacOsX": "https://stratifylabs.co/files/sl/macosx/Tools.zip",
+      "downloadCMakeWindows": "https://stratifylabs.co/files/sl/windows/cmake.exe",
+      "installWindows": "Invoke-WebRequest -Uri 'https://stratifylabs.page.link/slwin' -OutFile 'C:\\StratifyLabs-SDK\\Tools\\gcc\\bin\\sl.exe'",
+      "downloadSdkWindows": "https://stratifylabs.co/files/sl/windows/Tools.exe",
+      "mbedSupportList": [
+         {
+            "name": "NODE_F722ZE",
+            "projectId": "s61eUqIGIdpmv1hJkhBH"
+         },
+         {
+            "projectId": "8fgoFM3GV4Kos65AegZT",
+            "name": "NODE_F767ZI"
+         },
+         {
+            "name": "NODE_F446ZE",
+            "projectId": "FFxXbp1ExySM7DaLrBA4"
+         },
+         {
+            "projectId": "XCw1jMjiObLMUDKZFRG2",
+            "name": "NODE_F746ZG"
+         },
+         {
+            "name": "DIS_F723IE",
+            "projectId": "Oc5Pl1IvKoibbg4dlYe8"
+         },
+         {
+            "name": "NODE_F429ZI",
+            "projectId": "w4Lawd0RGPsQiDk6twa4"
+         },
+         {
+            "projectId": "Loy74Ukm6dVsLMqQ7T6g",
+            "name": "NODE_F412ZG"
+         }
+      ],
+      "version": "0.14",
+      "tags": [
+         "cortex-m4",
+         "utility",
+         "demo",
+         "HelloWorld",
+         "arm",
+         "cortex-m7",
+         "cortex-m3",
+         "toolbox"
+      ],
+      "documentId": "settings",
+      "timestamp": 1546434268
+   },
+   "lastConnectionSerialNumber": "00000000363238313136510A0025001A",
+   "lastConnectionPath": "\\\\.\\COM21"
+}
