@@ -32,12 +32,13 @@ and add function **mcu_qspi_command** to macros   "DEVFS_MCU_DRIVER_IOCTL_FUNCTI
 ...
 
 DEVFS_MCU_DRIVER_IOCTL_FUNCTION(qspi, QSPI_VERSION, QSPI_IOC_IDENT_CHAR, I_MCU_TOTAL + I_QSPI_TOTAL, \
-                                **mcu_qspi_command**,mcu_qspi_addr_command,\
+                                mcu_qspi_command,mcu_qspi_addr_command,\
                                 mcu_qspi_read_regs,mcu_qspi_write_regs)
 ...
 ```
 
 2.Correct StratifyOS\include\mcu\qspi.h
+
 add function **command** to macros   MCU_QSPI_IOCTL_REQUEST_DECLARATION
 ```cpp
 ...
@@ -46,7 +47,7 @@ add function **command** to macros   MCU_QSPI_IOCTL_REQUEST_DECLARATION
 	DEVFS_DRIVER_DECLARTION_IOCTL_REQUEST(driver_name, getinfo); \
 	DEVFS_DRIVER_DECLARTION_IOCTL_REQUEST(driver_name, setattr); \
     DEVFS_DRIVER_DECLARTION_IOCTL_REQUEST(driver_name, setaction);\
-    DEVFS_DRIVER_DECLARTION_IOCTL_REQUEST(driver_name, **command**);\
+    DEVFS_DRIVER_DECLARTION_IOCTL_REQUEST(driver_name, command);\
     DEVFS_DRIVER_DECLARTION_IOCTL_REQUEST(driver_name, addr_command);\
     DEVFS_DRIVER_DECLARTION_IOCTL_REQUEST(driver_name, read_regs);\
     DEVFS_DRIVER_DECLARTION_IOCTL_REQUEST(driver_name, write_regs)
@@ -56,16 +57,14 @@ add function **command** to macros   MCU_QSPI_IOCTL_REQUEST_DECLARATION
  
 
 3.Correct file StratifyOS\include\sos\dev\qspi.h
-    add macros
+add macros
 
 ```cpp
 ...
     #define I_QSPI_COMMAND _IOCTL(QSPI_IOC_IDENT_CHAR, I_MCU_TOTAL + 0)
 ...
 ```
-
-
-    change I_QSPI_TOTAL in 
+change I_QSPI_TOTAL in 
 
 ```cpp
 ...
