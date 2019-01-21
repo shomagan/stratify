@@ -1,6 +1,6 @@
 add ioctl functions steps
 ==============================
-for example on qspi additinal functions 
+for example on qspi additinal function **mcu_qspi_command**
 
 1.add body function in file StratifyOS-mcu-stm32\src\qspi_dev.c with prefix **mcu_qspi_**
 ```cpp
