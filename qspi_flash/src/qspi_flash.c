@@ -57,9 +57,9 @@ int qspi_flash(void){
             }
         }
         if(i>=TEST_BUFFER_SIZE){
-            printf ("passed equal \n");
+            printf ("passed equal %u %u\n",test_buffer_read[12],test_buffer_read[257]);
         }else{
-            printf ("not equal \n");
+            printf ("not equal %u %u \n",test_buffer_read[18],test_buffer_read[257]);
         }
 
         close(fd);
@@ -73,12 +73,12 @@ int qspi_flash(void){
   */
 u8 qspi_read_status_reg(int fd){
     u8 data = 0;
-    qspi_read_regs_config_t read_regs_config;
-    read_regs_config.regs_number = 1;
-    read_regs_config.command = READ_STATUS_REG_CMD;
-    read_regs_config.data = &data;
-    ioctl(fd, I_QSPI_READ_REGS, &read_regs_config);
-    /*change mode for address operations*/
+    qspi_attr_t qspi_attr;
+    memset(&qspi_attr,0,sizeof(qspi_attr_t));
+    qspi_attr.o_flags = QSPI_FLAG_READ_REGISTER|QSPI_FLAG_IS_REGISTER_WIDTH_8;
+    qspi_attr.command = READ_STATUS_REG_CMD;
+    qspi_attr.data = &data;
+    ioctl(fd, I_QSPI_SETATTR, &qspi_attr);
     return data;
 }
 /*@brief write data
@@ -126,16 +126,24 @@ u16 external_flash_read(int fd, u32 address,u8* buff,u16 length){
   */
 int qspi_erase_block(int fd,u32 block_address){
     int result=0;
-    qspi_addr_command_config_t qspi_attr;
     /* Enable write operations */
     if (qspi_write_enable(fd) ==0){
-        u8 status_reg = QSPI_SR_WIP;
+        qspi_attr_t qspi_attr;
+        u16 i=10000;
+        u8 status_reg;
+        /*change mode for read operations*/
+        memset(&qspi_attr,0,sizeof(qspi_attr_t));
+        qspi_attr.o_flags = QSPI_FLAG_WRITE_REGISTER|QSPI_FLAG_IS_REGISTER_WIDTH_32;
         qspi_attr.command = SUBSECTOR_ERASE_4_BYTE_ADDR_CMD;
-        qspi_attr.address = block_address;
-        ioctl(fd, I_QSPI_ADDR_COMMAND, &qspi_attr);
+        qspi_attr.data = (u8*)&block_address;
+        ioctl(fd, I_QSPI_SETATTR, &qspi_attr);
         status_reg = qspi_read_status_reg(fd);
         while(status_reg & QSPI_SR_WIP){
             status_reg = qspi_read_status_reg(fd);
+            if (i-- == 0) {
+                result = -1;
+                break;
+            }
         }
     }else{
         result = -1;
@@ -152,18 +160,22 @@ int qspi_write_enable(int fd){
     u8 status;
     u16 i;
     const u16 MAX_ITERATES = 10;
+    qspi_attr_t qspi_attr;
     i=0;
     status = qspi_read_status_reg(fd);
     for (i =0 ;i<MAX_ITERATES ;i++){
         /*change mode for read operations*/
-        ioctl(fd, I_QSPI_COMMAND, WRITE_ENABLE_CMD);
+        memset(&qspi_attr,0,sizeof(qspi_attr_t));
+        qspi_attr.o_flags = QSPI_FLAG_WRITE_REGISTER;
+        qspi_attr.command = WRITE_ENABLE_CMD;
+        ioctl(fd, I_QSPI_SETATTR, &qspi_attr);
         status = qspi_read_status_reg(fd);
         if(status & QSPI_SR_WREN){
             break;
         }
     }
-
     if(i >=MAX_ITERATES ){
+        printf("write enable error");
         result =-1;
     }
     return result;
@@ -181,53 +193,49 @@ u16 external_flash_write(int fd,u32 address,u8* buff,u16 length){
     u16 mergin;
     u8 status_reg;
     //writing
-    if(qspi_write_enable(fd)==0){
-        status_reg = qspi_read_status_reg(fd);
-        qspi_attr_t qspi_attr;
-        memset(&qspi_attr,0,sizeof(qspi_attr_t));
-        mergin = (u8)(~address) + 1;
-        if(length > mergin){
-            while(status_reg & QSPI_SR_WIP){
-                status_reg = qspi_read_status_reg(fd);
-            }
-            lseek(fd,(int)address,SEEK_SET);
-            write(fd,buff,mergin);
-            result = mergin;
-            length -= mergin;                              // re-calculate the number of elements
-            buff += mergin;                                             // modify the pointer to the buffer
-            address += mergin;                                             // modify the start address in the memory
-            page_count = length / QSPI_PAGE_SIZE;  // calculate number of pages to be written
-            remain = length % QSPI_PAGE_SIZE;   // calculate the remainder after filling up one or more entire pages
-            while(page_count--){
-                qspi_write_enable(fd);
-                status_reg = qspi_read_status_reg(fd);
-                while(status_reg & QSPI_SR_WIP){
-                    status_reg = qspi_read_status_reg(fd);
-                }
-                lseek(fd,(int)address,SEEK_SET);
-                write(fd,buff,QSPI_PAGE_SIZE);
-                buff += QSPI_PAGE_SIZE;
-                address += QSPI_PAGE_SIZE;
-                result+=QSPI_PAGE_SIZE;
-            }
-            qspi_write_enable(fd);
+    status_reg = qspi_read_status_reg(fd);
+    mergin = (u8)(~address) + 1;
+    if(length > mergin){
+        while(status_reg & QSPI_SR_WIP){
+            status_reg = qspi_read_status_reg(fd);
+        }
+        qspi_write_enable(fd);
+        lseek(fd,(int)address,SEEK_SET);
+        write(fd,buff,mergin);
+        result = mergin;
+        length -= mergin;                              // re-calculate the number of elements
+        buff += mergin;                                             // modify the pointer to the buffer
+        address += mergin;                                             // modify the start address in the memory
+        page_count = length / QSPI_PAGE_SIZE;  // calculate number of pages to be written
+        remain = length % QSPI_PAGE_SIZE;   // calculate the remainder after filling up one or more entire pages
+        while(page_count--){
             status_reg = qspi_read_status_reg(fd);
             while(status_reg & QSPI_SR_WIP){
                 status_reg = qspi_read_status_reg(fd);
             }
+            qspi_write_enable(fd);
             lseek(fd,(int)address,SEEK_SET);
-            write(fd,buff,remain);
-            result+=remain;
-        }else{
-            while(status_reg & QSPI_SR_WIP){
-                status_reg = qspi_read_status_reg(fd);
-            }
-            lseek(fd,(int)address,SEEK_SET);
-            write(fd,buff,length);
-            result = length;
+            write(fd,buff,QSPI_PAGE_SIZE);
+            buff += QSPI_PAGE_SIZE;
+            address += QSPI_PAGE_SIZE;
+            result+=QSPI_PAGE_SIZE;
         }
+        status_reg = qspi_read_status_reg(fd);
+        while(status_reg & QSPI_SR_WIP){
+            status_reg = qspi_read_status_reg(fd);
+        }
+        qspi_write_enable(fd);
+        lseek(fd,(int)address,SEEK_SET);
+        write(fd,buff,remain);
+        result+=remain;
     }else{
-        result = 0;
+        while(status_reg & QSPI_SR_WIP){
+            status_reg = qspi_read_status_reg(fd);
+        }
+        qspi_write_enable(fd);
+        lseek(fd,(int)address,SEEK_SET);
+        write(fd,buff,length);
+        result = length;
     }
     return result;
 }
@@ -245,13 +253,16 @@ int external_flash_set_qspi_mode(int fd){
     i=0;
     for (i =0 ;i<MAX_ITERATES ;i++){
         /*change mode for read operations*/
-        qspi_attr.o_flags = QSPI_FLAG_INSTRUCTION_1_LINE;
-        ioctl(fd, I_QSPI_SETATTR, &qspi_attr);
-        ioctl(fd, I_QSPI_COMMAND, ENTER_QUAD_CMD);
-        qspi_attr.o_flags = 0;
+        memset(&qspi_attr,0,sizeof(qspi_attr_t));
+        qspi_attr.o_flags = QSPI_FLAG_WRITE_REGISTER | QSPI_FLAG_IS_INSTRUCTION_1_LINE;
+        qspi_attr.command = ENTER_QUAD_CMD;
         ioctl(fd, I_QSPI_SETATTR, &qspi_attr);
         data = qspi_read_status_reg(fd);
         if(data & QSPI_SR_QUADEN){
+            qspi_attr.o_flags = QSPI_FLAG_WRITE_REGISTER |QSPI_FLAG_IS_INSTRUCTION_4_LINE;
+            qspi_attr.command = ENTER_QUAD_CMD;
+            ioctl(fd, I_QSPI_SETATTR, &qspi_attr);
+
             break;
         }
     }
@@ -272,7 +283,10 @@ int qspi_enter_four_bytes_address(int fd){
     memset(&qspi_attr,0,sizeof(qspi_attr_t));
     qspi_write_enable(fd);
     /*change mode for read operations*/
-    ioctl(fd, I_QSPI_COMMAND, ENTER_4_BYTE_ADDR_MODE_CMD);
+    memset(&qspi_attr,0,sizeof(qspi_attr_t));
+    qspi_attr.o_flags = QSPI_FLAG_WRITE_REGISTER;
+    qspi_attr.command = ENTER_4_BYTE_ADDR_MODE_CMD;
+    ioctl(fd, I_QSPI_SETATTR, &qspi_attr);
     return result;
 }
 /**
@@ -283,29 +297,38 @@ int qspi_enter_four_bytes_address(int fd){
 int qspi_set_dummy_cycles_and_strenght(int fd, u8 dummy_cycles,u8 strenght){
   u8 status[2];
   qspi_attr_t qspi_attr;
-  status[0] = qspi_read_status_reg(fd);
   memset(&qspi_attr,0,sizeof(qspi_attr_t));
-  /*change mode for read operations*/
-  qspi_read_regs_config_t read_regs_config;
-  qspi_write_regs_config_t write_regs_config;
-  read_regs_config.data = &status[1];
-  read_regs_config.command = READ_CFG_REG_CMD;
-  read_regs_config.regs_number = 1;
-  ioctl(fd, I_QSPI_READ_REGS, &read_regs_config);
+  /*read one*/
+  status[0] = qspi_read_status_reg(fd);
+  /*read two*/
+  qspi_attr.o_flags = QSPI_FLAG_READ_REGISTER|QSPI_FLAG_IS_REGISTER_WIDTH_8;
+  qspi_attr.command = READ_CFG_REG_CMD;
+  qspi_attr.data = &status[1];
+  ioctl(fd, I_QSPI_SETATTR, &qspi_attr);
+  printf("cnf regs %u %u",status[0],status[1]);
   qspi_write_enable(fd);
+  /*modify*/
   dummy_cycles = (u8)(dummy_cycles << 6) & QSPI_CR_NB_DUMMY;
   status[1] &= ~QSPI_CR_NB_DUMMY;
   status[1] |=dummy_cycles;
   strenght &= QSPI_CR_ODS;
   status[1] &= ~QSPI_CR_ODS;
   status[1] |=strenght;
-  write_regs_config.data = &status[0];
-  write_regs_config.command = WRITE_STATUS_CFG_REG_CMD;
-  write_regs_config.regs_number = 2;
-  ioctl(fd, I_QSPI_WRITE_REGS, &write_regs_config);
+  /*modify*/
+  qspi_attr.o_flags = QSPI_FLAG_WRITE_REGISTER|QSPI_FLAG_IS_REGISTER_WIDTH_16;
+  qspi_attr.command = WRITE_STATUS_CFG_REG_CMD;
+  qspi_attr.data = &status[0];
+  ioctl(fd, I_QSPI_SETATTR, &qspi_attr);
   u16 i =10000;
   while(i--){};
-  ioctl(fd, I_QSPI_READ_REGS, &read_regs_config);
+  /*read one*/
+  status[0] = qspi_read_status_reg(fd);
+  /*read two*/
+  qspi_attr.o_flags = QSPI_FLAG_READ_REGISTER|QSPI_FLAG_IS_REGISTER_WIDTH_8;
+  qspi_attr.command = READ_CFG_REG_CMD;
+  qspi_attr.data = &status[1];
+  ioctl(fd, I_QSPI_SETATTR, &qspi_attr);
+  printf("cnf regs %u %u",status[0],status[1]);
   return 0;
 }
 #endif
