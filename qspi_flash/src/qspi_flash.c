@@ -12,36 +12,20 @@
 int qspi_flash(void){
     printf("qspi example c\n");
     int fd;
-    qspi_attr_t qspi_attr;
     u8 test_buffer_read[TEST_BUFFER_SIZE];
     u8 test_buffer_write[TEST_BUFFER_SIZE];
     for (u16 i = 0;i<TEST_BUFFER_SIZE;i++){
         test_buffer_write[i] = (u8)i;
     }
-
-    fd = open("/dev/qspi", O_RDWR);
+    /*use wit default value*/
+    fd = open("/dev/qspi0", O_RDWR);
     if(fd<0){
         printf("Failed qspi open \n");
     }else{
+        printf("qspi opened \n");
         /*preinit settings attribute for qspi*/
-        memset(&qspi_attr,0,sizeof(qspi_attr_t));
-        memset(&qspi_attr.pin_assignment, 0xff, sizeof(qspi_pin_assignment_t));
-        /*first set att master*/
-        qspi_attr.o_flags = QSPI_FLAG_SET_MASTER;
-        /*set size flash */
-        qspi_attr.size = 26;    //2^26 - 64 mbytes
-        /*pin assignment*/
-        qspi_attr.pin_assignment.cs = mcu_pin(1,6);/*PB2*/
-        qspi_attr.pin_assignment.sck = mcu_pin(1,2);/*PB6*/
-        qspi_attr.pin_assignment.data[0] = mcu_pin(2,9);/*PC9*/
-        qspi_attr.pin_assignment.data[1] = mcu_pin(2,10);/*PC10*/
-        qspi_attr.pin_assignment.data[2] = mcu_pin(3,13);/*PD13*/
-        qspi_attr.pin_assignment.data[3] = mcu_pin(4,2);/*PE2*/
-        qspi_attr.read_instruction = QPI_READ_4_BYTE_ADDR_CMD;
-        qspi_attr.mem_mapped_read_instruction = QUAD_OUT_FAST_READ_CMD;
-        qspi_attr.write_instruction = QPI_PAGE_PROG_4_BYTE_ADDR_CMD;
-        qspi_attr.dummy_cycle = QSPI_DUMMY_CYCLES_READ_QUAD_IO;
-        ioctl(fd, I_QSPI_SETATTR, &qspi_attr);
+        ioctl(fd, I_QSPI_SETATTR, NULL);
+        printf("qspi set attr with def value\n");
         external_flash_set_qspi_mode(fd);
         qspi_enter_four_bytes_address(fd);
         qspi_set_dummy_cycles_and_strenght(fd,QSPI_DUMMY_CYCLES_READ_QUAD,QSPI_CR_ODS_15);
@@ -57,13 +41,67 @@ int qspi_flash(void){
             }
         }
         if(i>=TEST_BUFFER_SIZE){
-            printf ("passed equal %u %u\n",test_buffer_read[12],test_buffer_read[257]);
+            printf ("passed equal \n");
         }else{
-            printf ("not equal %u %u \n",test_buffer_read[18],test_buffer_read[257]);
+            printf ("not equal \n");
         }
-
-        close(fd);
+        if(close(fd)<0){
+            printf ("invalid closeing file\n");
+        }
     }
+    /*use wit setting params*/
+    fd = open("/dev/qspi0", O_RDWR);
+    if(fd<0){
+        printf("Failed qspi open \n");
+    }else{
+        printf("qspi opened \n");
+        qspi_attr_t qspi_attr;
+        /*preinit settings attribute for qspi*/
+        memset(&qspi_attr,0,sizeof(qspi_attr_t));
+        memset(&qspi_attr.pin_assignment, 0xff, sizeof(qspi_pin_assignment_t));
+        /*first set att master*/
+        qspi_attr.o_flags = QSPI_FLAG_SET_MASTER;
+        /*set size flash */
+        qspi_attr.width = 26;    //2^26 - 64 mbytes
+        /*clock prescaller 1 -> (mcu clock / 2)*/
+        qspi_attr.freq = 1;
+        /*pin assignment*/
+        qspi_attr.pin_assignment.cs = mcu_pin(1,6);/*PB2*/
+        qspi_attr.pin_assignment.sck = mcu_pin(1,2);/*PB6*/
+        qspi_attr.pin_assignment.data[0] = mcu_pin(2,9);/*PC9*/
+        qspi_attr.pin_assignment.data[1] = mcu_pin(2,10);/*PC10*/
+        qspi_attr.pin_assignment.data[2] = mcu_pin(3,13);/*PD13*/
+        qspi_attr.pin_assignment.data[3] = mcu_pin(4,2);/*PE2*/
+        qspi_attr.read_instruction = QPI_READ_4_BYTE_ADDR_CMD;
+        qspi_attr.mem_mapped_read_instruction = QUAD_OUT_FAST_READ_CMD;
+        qspi_attr.write_instruction = QPI_PAGE_PROG_4_BYTE_ADDR_CMD;
+        qspi_attr.dummy_cycle = QSPI_DUMMY_CYCLES_READ_QUAD_IO;
+        ioctl(fd, I_QSPI_SETATTR, &qspi_attr);
+        printf("qspi sets with pin assignment \n");
+        external_flash_set_qspi_mode(fd);
+        qspi_enter_four_bytes_address(fd);
+        qspi_set_dummy_cycles_and_strenght(fd,QSPI_DUMMY_CYCLES_READ_QUAD,QSPI_CR_ODS_15);
+        qspi_erase_block(fd,0);
+        qspi_erase_block(fd,256);
+        external_flash_read(fd,0,test_buffer_read,TEST_BUFFER_SIZE);
+        external_flash_write(fd,0,test_buffer_write,TEST_BUFFER_SIZE);
+        external_flash_read(fd,0,test_buffer_read,TEST_BUFFER_SIZE);
+        u16 i=0;
+        for (i=0;i<TEST_BUFFER_SIZE;i++){
+            if (test_buffer_read[i]!=test_buffer_write[i]){
+                break;
+            }
+        }
+        if(i>=TEST_BUFFER_SIZE){
+            printf ("passed equal \n");
+        }else{
+            printf ("not equal \n");
+        }
+        if(close(fd)<0){
+            printf ("invalid closeing file\n");
+        }
+    }
+
     return fd;
 }
 /**
@@ -305,7 +343,6 @@ int qspi_set_dummy_cycles_and_strenght(int fd, u8 dummy_cycles,u8 strenght){
   qspi_attr.command = READ_CFG_REG_CMD;
   qspi_attr.data = &status[1];
   ioctl(fd, I_QSPI_SETATTR, &qspi_attr);
-  printf("cnf regs %u %u",status[0],status[1]);
   qspi_write_enable(fd);
   /*modify*/
   dummy_cycles = (u8)(dummy_cycles << 6) & QSPI_CR_NB_DUMMY;
@@ -328,7 +365,6 @@ int qspi_set_dummy_cycles_and_strenght(int fd, u8 dummy_cycles,u8 strenght){
   qspi_attr.command = READ_CFG_REG_CMD;
   qspi_attr.data = &status[1];
   ioctl(fd, I_QSPI_SETATTR, &qspi_attr);
-  printf("cnf regs %u %u",status[0],status[1]);
   return 0;
 }
 #endif
