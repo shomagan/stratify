@@ -1,5 +1,5 @@
-#ifndef QSPI_TEST_C_
-#define QSPI_TEST_C_
+#ifndef EXTERNAL_RAM_C_
+#define EXTERNAL_RAM_C_
 #include <stdio.h>
 #include <string.h>
 #include "external_ram.h"
@@ -9,6 +9,7 @@
 #define SRAM_SIZE                      ((uint32_t)0x100000)
 #define TEST_BUFFER_SIZE         ((uint32_t)250)
 
+
 int external_ram(void){
     int fd;
     u8 test_buffer_read[TEST_BUFFER_SIZE];
@@ -16,7 +17,6 @@ int external_ram(void){
     for (u16 i = 0;i<TEST_BUFFER_SIZE;i++){
         test_buffer_write[i] = (u8)i;
     }
-
     printf("external ram example c\n");
     fd = open("/dev/fmc_psram0", O_RDWR);
     /*with setting configuration*/
@@ -27,11 +27,51 @@ int external_ram(void){
         printf("success fmc_psram0 open \n");
         memset(&emc_attr,0,sizeof(emc_attr_t));
         memset(&emc_attr.pin_assignment, 0xff, sizeof(emc_pin_assignment_t));
+        emc_attr.pin_assignment.bl[0] = mcu_pin(4,0);
+        emc_attr.pin_assignment.bl[1] = mcu_pin(4,1);
+        emc_attr.pin_assignment.oe = mcu_pin(3,4);
+        emc_attr.pin_assignment.we = mcu_pin(3,5);
+        emc_attr.pin_assignment.ncs[0] = mcu_pin(3,7);
+        emc_attr.pin_assignment.data[0] = mcu_pin(3,14);
+        emc_attr.pin_assignment.data[1] = mcu_pin(3,15);
+        emc_attr.pin_assignment.data[2] = mcu_pin(3,0);
+        emc_attr.pin_assignment.data[3] = mcu_pin(3,1);
+        emc_attr.pin_assignment.data[4] = mcu_pin(4,7);
+        emc_attr.pin_assignment.data[5] = mcu_pin(4,8);
+        emc_attr.pin_assignment.data[6] = mcu_pin(4,9);
+        emc_attr.pin_assignment.data[7] = mcu_pin(4,10);
+        emc_attr.pin_assignment.data[8] = mcu_pin(4,11);
+        emc_attr.pin_assignment.data[9] = mcu_pin(4,12);
+        emc_attr.pin_assignment.data[10] = mcu_pin(4,13);
+        emc_attr.pin_assignment.data[11] = mcu_pin(4,14);
+        emc_attr.pin_assignment.data[12] = mcu_pin(4,15);
+        emc_attr.pin_assignment.data[13] = mcu_pin(3,8);
+        emc_attr.pin_assignment.data[14] = mcu_pin(3,9);
+        emc_attr.pin_assignment.data[15] = mcu_pin(3,10);
+        emc_attr.pin_assignment.address[0] = mcu_pin(5,0);
+        emc_attr.pin_assignment.address[1] = mcu_pin(5,1);
+        emc_attr.pin_assignment.address[2] = mcu_pin(5,2);
+        emc_attr.pin_assignment.address[3] = mcu_pin(5,3);
+        emc_attr.pin_assignment.address[4] = mcu_pin(5,4);
+        emc_attr.pin_assignment.address[5] = mcu_pin(5,5);
+        emc_attr.pin_assignment.address[6] = mcu_pin(5,12);
+        emc_attr.pin_assignment.address[7] = mcu_pin(5,13);
+        emc_attr.pin_assignment.address[8] = mcu_pin(5,14);
+        emc_attr.pin_assignment.address[9] = mcu_pin(5,15);
+        emc_attr.pin_assignment.address[10] = mcu_pin(6,0);
+        emc_attr.pin_assignment.address[11] = mcu_pin(6,1);
+        emc_attr.pin_assignment.address[12] = mcu_pin(6,2);
+        emc_attr.pin_assignment.address[13] = mcu_pin(6,3);
+        emc_attr.pin_assignment.address[14] = mcu_pin(6,4);
+        emc_attr.pin_assignment.address[15] = mcu_pin(6,5);
+        emc_attr.pin_assignment.address[16] = mcu_pin(3,11);
+        emc_attr.pin_assignment.address[17] = mcu_pin(3,12);
         /*first set att master*/
         emc_attr.size = SRAM_SIZE;
         emc_attr.base_address = SRAM_BANK_ADDR;
-        emc_attr.o_flags = EMC_FLAG_ENABLE;
+        emc_attr.o_flags = EMC_FLAG_IS_PSRAM|EMC_FLAG_ENABLE|EMC_FLAG_IS_PSRAM_BANK1;
         emc_attr.data_bus_width = 16;
+
         ioctl(fd, I_EMC_SETATTR, &emc_attr);
         printf("fmc enabled\n");
         lseek(fd,(int)0,SEEK_SET);
