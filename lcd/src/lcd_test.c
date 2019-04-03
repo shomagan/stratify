@@ -53,8 +53,22 @@ int lcd_test(void){
             size_x = ST7789H2_GetLcdPixelWidth();
             printf("x - %u, y - %u \n",size_y,size_x);
             for (u16 i=0;i<size_y;i++){
+                ST7789H2_DrawHLine(LCD_COLOR_GRAY,0,i,size_x);
+            }
+            for (u16 i=0;i<size_y;i++){
+                ST7789H2_DrawHLine(LCD_COLOR_BLUE,0,i,size_x);
+            }
+            for (u16 i=0;i<size_y;i++){
+                ST7789H2_DrawHLine(LCD_COLOR_RED,0,i,size_x);
+            }
+            for (u16 i=0;i<size_y;i++){
+                ST7789H2_DrawHLine(LCD_COLOR_BROWN,0,i,size_x);
+            }
+
+            for (u16 i=0;i<size_y;i++){
                 ST7789H2_DrawHLine(LCD_COLOR_BLACK,0,i,size_x);
             }
+
             u8 y = 0;
             lcd_draw_char(size_x/2, y, 's');
             y += Font24.Height;
