@@ -16,7 +16,6 @@ static u32 volume = 15;
 static u8 thread_is_execute = 1;
 static u32 event_out=0;
 #define SRAM_SIZE                      (0x80000)
-
 #define AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD                  8192  /* buffer size in half-word */
 uint16_t buff_in[AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD];
 uint16_t buff_out[AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD];

@@ -6,8 +6,8 @@
 #ifndef SL_CONFIG_H_
 #define SL_CONFIG_H_
 
-#define SL_CONFIG_VERSION_STRING "1.10"
-#define SL_CONFIG_VERSION_BCD 0x10A
+#define SL_CONFIG_VERSION_STRING "0.10"
+#define SL_CONFIG_VERSION_BCD 0x0A
 #define SL_CONFIG_DOCUMENT_ID "Kvp7xXzdO94kyCWAAcmW"
 #define SL_CONFIG_NAME "audio"
 #define SL_CONFIG_TYPE "app"

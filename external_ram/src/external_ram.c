@@ -6,6 +6,7 @@
 #include "sos/dev/emc.h"
 #include "sos/sos.h"
 #define SRAM_BANK_ADDR                 ((uint32_t)0x60000000)
+/*on disco board accesible space only 4 mbit(524288 mbyte)*/
 #define SRAM_SIZE                      ((uint32_t)0x80000)
 #define TEST_BUFFER_SIZE         ((uint32_t)250)
 
@@ -123,7 +124,7 @@ int external_ram(void){
         }
         printf("value %lu \n",i);
         i-=TEST_BUFFER_SIZE;
-        for (;i>0;i-=TEST_BUFFER_SIZE){
+        for (i=0;i<(SRAM_SIZE-TEST_BUFFER_SIZE);i+=TEST_BUFFER_SIZE){
             lseek(fd,(int)i,SEEK_SET);
             read(fd,test_buffer_read,TEST_BUFFER_SIZE);
             j=0;

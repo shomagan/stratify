@@ -9,7 +9,7 @@
 #define SL_CONFIG_VERSION_STRING "1.10"
 #define SL_CONFIG_VERSION_BCD 0x10A
 #define SL_CONFIG_DOCUMENT_ID "Kvp7xXzdO94kyCWAAcmW"
-#define SL_CONFIG_NAME "ext_ram"
+#define SL_CONFIG_NAME "external_ram"
 #define SL_CONFIG_TYPE "app"
 #define SL_CONFIG_PUBLISHER "Stratify Labs, Inc"
 #define SL_CONFIG_PERMISSIONS "public"
