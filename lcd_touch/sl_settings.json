@@ -1,0 +1,18 @@
+{
+   "description": "lcd_touch",
+   "github": "",
+   "name": "lcd_touch",
+   "permissions": "public",
+   "publisher": "Stratify Labs, Inc",
+   "tags": "demo",
+   "type": "app",
+   "uid": "9cQyOTk3fZXOuMtPyf5j9X4H4b83",
+   "version": "0.10",
+   "ramSize": 0,
+   "timestamp": 1543102100,
+   "documentId": "Kvp7xXzdO94kyCWAAcmW",
+   "buildList": {
+      "NbvflBln6IWAmMPeBYLA": "1.10"
+   },
+   "hardwareId": ""
+}

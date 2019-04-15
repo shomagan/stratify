@@ -7,9 +7,9 @@
 #include "sos/sos.h"
 
 #define FLASH_TEST_ADDRESS  ((uint32_t)0x0000)
-#define TEST_BUFFER_SIZE         ((uint32_t)258)
-
-
+#define TEST_BUFFER_SIZE         ((uint32_t)256)
+#define FLASH_SIZE  0x4000000
+#define QSPI_SECTOR_SIZE                     4096
 int qspi_flash(void){
     printf("qspi example c\n");
     int fd;
@@ -23,6 +23,7 @@ int qspi_flash(void){
     if(fd<0){
         printf("Failed qspi open \n");
     }else{
+        u32 i=0;
         printf("qspi opened \n");
         /*preinit settings attribute for qspi*/
         ioctl(fd, I_QSPI_SETATTR, NULL);
@@ -30,22 +31,46 @@ int qspi_flash(void){
         external_flash_set_qspi_mode(fd);
         qspi_enter_four_bytes_address(fd);
         qspi_set_dummy_cycles_and_strenght(fd,QSPI_DUMMY_CYCLES_READ_QUAD,QSPI_CR_ODS_15);
-        qspi_erase_block(fd,0);
-        qspi_erase_block(fd,256);
-        external_flash_read(fd,0,test_buffer_read,TEST_BUFFER_SIZE);
-        external_flash_write(fd,0,test_buffer_write,TEST_BUFFER_SIZE);
-        external_flash_read(fd,0,test_buffer_read,TEST_BUFFER_SIZE);
-        u16 i=0;
-        for (i=0;i<TEST_BUFFER_SIZE;i++){
-            if (test_buffer_read[i]!=test_buffer_write[i]){
+        qspi_erase_block(fd, 0);
+        u32 j=0;
+        for (i=0;(i*TEST_BUFFER_SIZE)<(FLASH_SIZE/4-TEST_BUFFER_SIZE);i++){
+            j=0;
+            memset(&test_buffer_write,(u8)(i),TEST_BUFFER_SIZE);
+            if(((i*TEST_BUFFER_SIZE + TEST_BUFFER_SIZE)/QSPI_SECTOR_SIZE != \
+                    (i*TEST_BUFFER_SIZE)/QSPI_SECTOR_SIZE)){
+                qspi_erase_block(fd, ((i*TEST_BUFFER_SIZE + TEST_BUFFER_SIZE)/QSPI_SECTOR_SIZE)*QSPI_SECTOR_SIZE);
+            }
+            if(((i*TEST_BUFFER_SIZE + TEST_BUFFER_SIZE)/(QSPI_SECTOR_SIZE*256) != \
+                (i*TEST_BUFFER_SIZE)/(QSPI_SECTOR_SIZE*256))||((i*TEST_BUFFER_SIZE % (QSPI_SECTOR_SIZE*256))==0)){
+                printf("writed %lu\n",i*TEST_BUFFER_SIZE);
+            }
+            external_flash_write(fd,i*TEST_BUFFER_SIZE,test_buffer_write,TEST_BUFFER_SIZE);
+        }
+        printf("last writed address %lu \n",i*TEST_BUFFER_SIZE);
+        for (i=0;(i*TEST_BUFFER_SIZE)<(FLASH_SIZE/4-TEST_BUFFER_SIZE);i++){
+            external_flash_read(fd,i*TEST_BUFFER_SIZE,test_buffer_read,TEST_BUFFER_SIZE);
+            j=0;
+            for (j=0;j<TEST_BUFFER_SIZE;j++){
+                if (test_buffer_read[j]!=(u8)(i)){
+                    printf("error verification additional %lu %u %lu \n",j,test_buffer_read[j],i);
+                    printf("error verification additional %u %u %u %u\n",test_buffer_read[j-1],test_buffer_read[j+1],
+                            test_buffer_read[j+2],test_buffer_read[j+3]);
+                    break;
+                }
+            }
+            if(((i*TEST_BUFFER_SIZE + TEST_BUFFER_SIZE)/(QSPI_SECTOR_SIZE*256) != \
+                (i*TEST_BUFFER_SIZE)/(QSPI_SECTOR_SIZE*256))||((i*TEST_BUFFER_SIZE % (QSPI_SECTOR_SIZE*256))==0)){
+                printf("readed %lu\n",i*TEST_BUFFER_SIZE);
+            }
+
+            if(j<TEST_BUFFER_SIZE){
+                printf("error verification additional %lu %lu \n",j,i*TEST_BUFFER_SIZE);
                 break;
             }
         }
-        if(i>=TEST_BUFFER_SIZE){
-            printf ("passed equal \n");
-        }else{
-            printf ("not equal \n");
-        }
+
+        printf("qspi flash tested - %lu ram space from - %lu \n", i*TEST_BUFFER_SIZE,(FLASH_SIZE-TEST_BUFFER_SIZE));
+
         if(close(fd)<0){
             printf ("invalid closeing file\n");
         }
@@ -83,7 +108,6 @@ int qspi_flash(void){
         qspi_enter_four_bytes_address(fd);
         qspi_set_dummy_cycles_and_strenght(fd,QSPI_DUMMY_CYCLES_READ_QUAD,QSPI_CR_ODS_15);
         qspi_erase_block(fd,0);
-        qspi_erase_block(fd,256);
         external_flash_read(fd,0,test_buffer_read,TEST_BUFFER_SIZE);
         external_flash_write(fd,0,test_buffer_write,TEST_BUFFER_SIZE);
         external_flash_read(fd,0,test_buffer_read,TEST_BUFFER_SIZE);
@@ -130,7 +154,13 @@ u16 external_flash_read(int fd, u32 address,u8* buff,u16 length){
     u16 result = 0;
     u16 page_count,remain;
     u16 mergin;
+    u8 status_reg;
     //disable address mode if enabled
+    status_reg = qspi_read_status_reg(fd);
+    while(status_reg & QSPI_SR_WIP){
+        status_reg = qspi_read_status_reg(fd);
+    }
+
     mergin = (u8)(~address) + 1;
     if(length > mergin){
         lseek(fd,(int)address,SEEK_SET);
@@ -166,23 +196,28 @@ u16 external_flash_read(int fd, u32 address,u8* buff,u16 length){
 int qspi_erase_block(int fd,u32 block_address){
     int result=0;
     /* Enable write operations */
+    u8 address[4];
+    u8 status_reg;
+    address[0] =(u8)(block_address>>24);
+    address[1] =(u8)(block_address>>16);
+    address[2] =(u8)(block_address>>8);
+    address[3] =(u8)(block_address);
+    status_reg = qspi_read_status_reg(fd);
+    while(status_reg & QSPI_SR_WIP){
+        status_reg = qspi_read_status_reg(fd);
+    }
     if (qspi_write_enable(fd) ==0){
         qspi_attr_t qspi_attr;
-        u16 i=10000;
-        u8 status_reg;
+
         /*change mode for read operations*/
         memset(&qspi_attr,0,sizeof(qspi_attr_t));
         qspi_attr.o_flags = QSPI_FLAG_WRITE_REGISTER|QSPI_FLAG_IS_REGISTER_WIDTH_32;
         qspi_attr.command = SUBSECTOR_ERASE_4_BYTE_ADDR_CMD;
-        qspi_attr.data = (u8*)&block_address;
+        qspi_attr.data = (u8*)address;
         ioctl(fd, I_QSPI_SETATTR, &qspi_attr);
         status_reg = qspi_read_status_reg(fd);
         while(status_reg & QSPI_SR_WIP){
             status_reg = qspi_read_status_reg(fd);
-            if (i-- == 0) {
-                result = -1;
-                break;
-            }
         }
     }else{
         result = -1;
@@ -235,6 +270,7 @@ u16 external_flash_write(int fd,u32 address,u8* buff,u16 length){
     status_reg = qspi_read_status_reg(fd);
     mergin = (u8)(~address) + 1;
     if(length > mergin){
+
         while(status_reg & QSPI_SR_WIP){
             status_reg = qspi_read_status_reg(fd);
         }
