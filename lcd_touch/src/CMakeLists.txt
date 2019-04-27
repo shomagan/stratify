@@ -8,4 +8,8 @@ set(SOURCES ${SOURCES_PREFIX}/lcd_test.c
         ${SOURCES_PREFIX}/st7789h2.h
         ${SOURCES_PREFIX}/fonts.h
         ${SOURCES_PREFIX}/font24.c
+        ${SOURCES_PREFIX}/ft6x06.h
+        ${SOURCES_PREFIX}/ft6x06.c
+        ${SOURCES_PREFIX}/ts.h
+        ${SOURCES_PREFIX}/ts.c
      PARENT_SCOPE)

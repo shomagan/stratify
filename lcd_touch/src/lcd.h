@@ -46,16 +46,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include <stdint.h>
 #include "fonts.h"
-/** @addtogroup BSP
-  * @{
-  */
 #define  LCD_ORIENTATION_PORTRAIT         ((uint8_t)0x00)  /*!< Portrait orientation choice of LCD screen  */
 #define  LCD_ORIENTATION_LANDSCAPE        ((uint8_t)0x01)  /*!< Landscape orientation choice of LCD screen */
 #define  LCD_ORIENTATION_LANDSCAPE_ROT180 ((uint32_t)0x02) /*!< Landscape rotated 180° orientation choice of LCD screen */
-
-/**
-* @brief  LCD color
-*/
 #define LCD_COLOR_BLUE          ((uint16_t)0x001F)
 #define LCD_COLOR_GREEN         ((uint16_t)0x07E0)
 #define LCD_COLOR_RED           ((uint16_t)0xF800)
@@ -87,21 +80,6 @@ typedef struct  {
    sFONT    *pFont;
 }LCD_DrawPropTypeDef;
 
-/** @addtogroup Components
-  * @{
-  */
-
-/** @addtogroup LCD
-  * @{
-  */
- 
-/** @defgroup LCD_Exported_Types
-  * @{
-  */
-
-/** @defgroup LCD_Driver_structure  LCD Driver structure
-  * @{
-  */
 typedef struct
 {
   void     (*Init)(void);
@@ -123,25 +101,6 @@ typedef struct
   void     (*DrawRGBImage)(uint16_t, uint16_t, uint16_t, uint16_t, uint8_t*);
 }LCD_DrvTypeDef;    
  void lcd_draw_char(uint16_t x, uint16_t y, uint8_t val);
-/**
-  * @}
-  */
-
-/**
-  * @}
-  */
-
-/**
-  * @}
-  */
-
-/**
-  * @}
-  */
-
-/**
-  * @}
-  */
 
 #ifdef __cplusplus
 }

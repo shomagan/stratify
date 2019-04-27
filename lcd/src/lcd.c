@@ -7,6 +7,7 @@
 #include "sos/dev/emc.h"
 #include "sos/sos.h"
 #include "st7789h2.h"
+
 /* LCD IO functions */
 int lcd_io_init(int fd);
 void     lcd_io_write_multiple_data(int fd,u16 *data, u32 size);

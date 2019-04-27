@@ -160,12 +160,12 @@ extern void     lcd_io_write_reg(int fd,uint8_t reg);
 extern void     lcd_io_write_data(int fd,uint16_t data);
 extern uint16_t lcd_io_read_data(int fd);
 extern void     lcd_delay(uint32_t delay);
-#define LCD_IO_Init() lcd_io_init(lcd_fd);
+#define LCD_IO_Init() lcd_io_init(lcd_fd)
 #define LCD_IO_WriteMultipleData(x,y) lcd_io_write_multiple_data(lcd_fd,x,y)
 #define LCD_IO_WriteReg(x) lcd_io_write_reg(lcd_fd,x)
 #define LCD_IO_WriteData(x) lcd_io_write_data(lcd_fd,x)
 #define LCD_IO_ReadData() lcd_io_read_data(lcd_fd)
-#define LCD_IO_Delay(x) usleep(x*1000);
+#define LCD_IO_Delay(x) usleep(x*1000)
 
 /**
   * @}
