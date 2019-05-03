@@ -24,11 +24,10 @@ static u16 test_position = 0;
 #define I2S_AUDIOFREQ_16K                ((uint32_t)16000U)
 #define DEFAULT_AUDIO_IN_CHANNEL_NBR 2
 #define BIT(x) (1<<x)
-#define DEFAULT_AUDIO_IN_FREQ I2S_AUDIOFREQ_16K
 #define DEFAULT_TIME_REC                      30  /* Recording time in second (default: 30s) */
-#define REC_SAMPLE_LENGTH   (DEFAULT_TIME_REC * DEFAULT_AUDIO_IN_FREQ * DEFAULT_AUDIO_IN_CHANNEL_NBR * 2)
 #define TEST_OUTPUT 0
 static int fd_psram,position = 0;
+static uint32_t freq = I2S_AUDIOFREQ_16K;
 int audio_test(void){
     int res = 0;
     int fd,fd_sai_out,fd_sai_in;
@@ -68,14 +67,14 @@ int audio_test(void){
         memset(&sai_in,0,sizeof(sai_attr_t));
         memset(&sai_out.pin_assignment,0xff,sizeof(sai_pin_assignment_t));
         memset(&sai_in.pin_assignment,0xff,sizeof(sai_pin_assignment_t));
-        sai_out.freq = 16000;
+        sai_out.freq = freq;
         sai_out.mck_mult = 1;
         sai_out.o_flags = I2S_FLAG_SET_MASTER|I2S_FLAG_IS_RECEIVER|SAI_FLAG_IS_OUTPUTDRIVE_DISABLE|\
             SAI_FLAG_IS_FIFOTHRESHOLD_1QF|SAI_FLAG_ENABLE;//dma disabled
         sai_out.slot = BIT(0) |BIT(1) |BIT(2) | BIT(3);
         sai_in.o_flags = I2S_FLAG_SET_SLAVE|I2S_FLAG_IS_RECEIVER|SAI_FLAG_IS_OUTPUTDRIVE_DISABLE|\
             SAI_FLAG_IS_FIFOTHRESHOLD_1QF|SAI_FLAG_ENABLE|SAI_DMA_ENABLE|SAI_FLAG_IS_SYNCHRONOUS;
-        sai_in.freq = 16000;
+        sai_in.freq = freq;
         sai_in.mck_mult = 1;
         sai_in.slot =  BIT(0) |BIT(1) |BIT(2) | BIT(3);
         ioctl(fd_sai_out, I_I2S_SETATTR, &sai_out); /*init current config*/
@@ -84,8 +83,8 @@ int audio_test(void){
         printf("id read 0x%02x \n",data);
         if(data == WM8994_ID){
             wm8994_Reset(WM8994_I2C_ADDRESS);
-            volume = 75;
-            write_reg = wm8994_Init(WM8994_I2C_ADDRESS, INPUT_DEVICE_DIGITAL_MIC1_MIC2, volume, I2S_AUDIOFREQ_16K);
+            volume = 125;
+            write_reg = wm8994_Init(WM8994_I2C_ADDRESS, INPUT_DEVICE_DIGITAL_MIC1_MIC2, volume, freq);
             ioctl(fd_sai_in,I_MCU_SETACTION, &action);
             printf("fmc enabled\n");
             lseek(fd_psram,(int)0,SEEK_SET);
@@ -113,7 +112,7 @@ int audio_test(void){
         action.handler.context = NULL;
         memset(&sai_out,0,sizeof(sai_attr_t));
         memset(&sai_out.pin_assignment,0xff,sizeof(sai_pin_assignment_t));
-        sai_out.freq = 16000;
+        sai_out.freq = freq;
         sai_out.mck_mult = 1;
         sai_out.o_flags = I2S_FLAG_SET_MASTER|I2S_FLAG_IS_TRANSMITTER|SAI_FLAG_IS_OUTPUTDRIVE_DISABLE|\
             SAI_FLAG_IS_FIFOTHRESHOLD_1QF|SAI_FLAG_ENABLE|SAI_DMA_ENABLE;//dma disabled
@@ -122,8 +121,8 @@ int audio_test(void){
         wm8994_Reset(WM8994_I2C_ADDRESS);
         data = wm8994_ReadID(fd,WM8994_I2C_ADDRESS);
         printf("id read 0x%02x \n",data);
-        volume = 75;
-        write_reg = wm8994_Init(WM8994_I2C_ADDRESS, OUTPUT_DEVICE_BOTH, volume, I2S_AUDIOFREQ_16K);
+        volume = 20;
+        write_reg = wm8994_Init(WM8994_I2C_ADDRESS, OUTPUT_DEVICE_BOTH, volume, freq);
         wm8994_Play(WM8994_I2C_ADDRESS,buff_out,AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD*2);
         /*start playing*/
         ioctl(fd_sai_out,I_MCU_SETACTION, &action);
