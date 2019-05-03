@@ -12,14 +12,14 @@
 static int sai_in_cb(void * data, const mcu_event_t * event);
 static int sai_out_cb(void * data, const mcu_event_t * event);
 static void * out_buffer_thread_control(void * args);
-static u32 volume = 15;
+static u8 volume = 15;
 static u8 thread_is_execute = 1;
 static u32 event_out=0;
 #define SRAM_SIZE                      (0x80000)
-#define AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD                  8192  /* buffer size in half-word */
-uint16_t buff_in[AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD];
-uint16_t buff_out[AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD];
-u16 test_position = 0;
+#define AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD                  8000  /* buffer size in half-word */
+static uint16_t buff_in[AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD];
+static uint16_t buff_out[AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD];
+static u16 test_position = 0;
 #define I2S_AUDIOFREQ_48K                ((uint32_t)48000U)
 #define I2S_AUDIOFREQ_16K                ((uint32_t)16000U)
 #define DEFAULT_AUDIO_IN_CHANNEL_NBR 2
@@ -27,7 +27,7 @@ u16 test_position = 0;
 #define DEFAULT_AUDIO_IN_FREQ I2S_AUDIOFREQ_16K
 #define DEFAULT_TIME_REC                      30  /* Recording time in second (default: 30s) */
 #define REC_SAMPLE_LENGTH   (DEFAULT_TIME_REC * DEFAULT_AUDIO_IN_FREQ * DEFAULT_AUDIO_IN_CHANNEL_NBR * 2)
-
+#define TEST_OUTPUT 0
 static int fd_psram,position = 0;
 int audio_test(void){
     int res = 0;
@@ -37,6 +37,21 @@ int audio_test(void){
     mcu_action_t action ;
     u32 write_reg ;
     u8 read_enable = 1;
+    pthread_t t;
+    pthread_attr_t pattr;
+    if ( pthread_attr_init(&pattr) < 0 ){
+        fflush(stdout);
+        printf("attr_init failed\n");
+    }
+    if ( pthread_attr_setstacksize(&pattr, 2048) < 0 ){
+        fflush(stdout);
+        printf("setstacksize failed\n");
+    }
+    if ( pthread_create(&t, &pattr, out_buffer_thread_control, NULL) < 0 ){
+        printf("create failed\n");
+    }
+    struct timespec now;
+    u32 m_sec,m_sec_current;
     fd_sai_out = open("/dev/sai2", O_RDWR);
     fd_sai_in = open("/dev/sai3", O_RDWR);
     fd = open("/dev/i2c0", O_RDWR);
@@ -69,29 +84,20 @@ int audio_test(void){
         printf("id read 0x%02x \n",data);
         if(data == WM8994_ID){
             wm8994_Reset(WM8994_I2C_ADDRESS);
-            volume = 50;
+            volume = 75;
             write_reg = wm8994_Init(WM8994_I2C_ADDRESS, INPUT_DEVICE_DIGITAL_MIC1_MIC2, volume, I2S_AUDIOFREQ_16K);
-            printf("write %lu", write_reg);
             ioctl(fd_sai_in,I_MCU_SETACTION, &action);
             printf("fmc enabled\n");
-
             lseek(fd_psram,(int)0,SEEK_SET);
             memset(buff_in,0,AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD*2);
             printf("clear buff\n");
-            for (int i =0;i<10;i++){
-                lseek(fd_psram,(int)i*AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD*2,SEEK_SET);
-                write(fd_psram,buff_in,AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD*2);
-            }
-            printf("start recording\n");
             position = 0;
+            clock_gettime(CLOCK_REALTIME, &now);
+            m_sec = (u32)now.tv_sec*1000 + (u32)now.tv_nsec/1000000;
             read(fd_sai_in,buff_in,AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD * 2);
-           /* for (i =0; i<SRAM_SIZE ; i+=(AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD*2)){
-                lseek(fd_psram,(int)i,SEEK_SET);
-                read(fd_psram,buff_in,AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD * 2);
-                for (int j=0;j<10;j++){
-                    printf("%u - %u \n",j+i,buff_in[j]);
-                }
-            }*/
+            clock_gettime(CLOCK_REALTIME, &now);
+            m_sec_current = (u32)now.tv_sec*1000 + (u32)now.tv_nsec/1000000;
+            printf("cancel recording %u ,time  ms %u\n",position , (m_sec_current - m_sec) );
             wm8994_Stop(WM8994_I2C_ADDRESS,CODEC_PDWN_SW);
         }
     }
@@ -102,25 +108,9 @@ int audio_test(void){
         res =-1;
         printf("open have failed \n");
     }else{
-        pthread_mutexattr_t attr;
-        pthread_t t;
-        pthread_attr_t pattr;
-        if ( pthread_attr_init(&pattr) < 0 ){
-            fflush(stdout);
-            printf("attr_init failed");
-        }
-        if ( pthread_attr_setstacksize(&pattr, 2048) < 0 ){
-            fflush(stdout);
-            printf("setstacksize failed");
-        }
-        if ( pthread_create(&t, &pattr, out_buffer_thread_control, NULL) < 0 ){
-            printf("create failed");
-        }
-
         action.channel = 2;
         action.handler.callback = sai_out_cb;
         action.handler.context = NULL;
-        printf("callback %p",action.handler.callback);
         memset(&sai_out,0,sizeof(sai_attr_t));
         memset(&sai_out.pin_assignment,0xff,sizeof(sai_pin_assignment_t));
         sai_out.freq = 16000;
@@ -129,43 +119,76 @@ int audio_test(void){
             SAI_FLAG_IS_FIFOTHRESHOLD_1QF|SAI_FLAG_ENABLE|SAI_DMA_ENABLE;//dma disabled
         sai_out.slot = BIT(0)|BIT(1)|BIT(2)|BIT(3);
         ioctl(fd_sai_out, I_I2S_SETATTR, &sai_out); /*init current config*/
-        sai_out.o_flags = SAI_FLAG_SET_SLOT;//dma disabled
-        sai_out.slot = BIT(0)|BIT(2);
-        ioctl(fd_sai_out, I_I2S_SETATTR, &sai_out); /*init current config*/
         wm8994_Reset(WM8994_I2C_ADDRESS);
         data = wm8994_ReadID(fd,WM8994_I2C_ADDRESS);
         printf("id read 0x%02x \n",data);
-        volume = 15;
+        volume = 75;
         write_reg = wm8994_Init(WM8994_I2C_ADDRESS, OUTPUT_DEVICE_BOTH, volume, I2S_AUDIOFREQ_16K);
         wm8994_Play(WM8994_I2C_ADDRESS,buff_out,AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD*2);
         /*start playing*/
         ioctl(fd_sai_out,I_MCU_SETACTION, &action);
-        printf("start playing\n");
+#if TEST_OUTPUT
+#define TEST_PERIOD        8    // 2000Hz
+#define TEST_PERIOD_2        16    // 1000Hz
+#define TEST_PERIOD_4        32    // 500Hz
+#define TEST_PERIOD_8        64    // 250Hz
+#define TEST_PERIOD_16        128    // 125Hz
+#define MAX_VALUE          10000
+        int period = TEST_PERIOD;
+
+        for (int j=0; j<SRAM_SIZE;j+=AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD){
+            for(int i=0;i<AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD;i++){
+                if(((i % period) == 0) || ((i % period) == period/2)){
+                    buff_out[i] = MAX_VALUE/2;
+                }else if(((i % period) == period/4)){
+                    buff_out[i] = MAX_VALUE;
+                }else if(((i % period) == (period/4)*3)){
+                    buff_out[i] = 0;
+                }else{
+                    buff_out[i] = buff_out[i-1];
+                }
+            }
+            lseek(fd_psram,(int)position,SEEK_SET);
+            write(fd_psram,&buff_out[0],AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD*2);
+            position += AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD;//AUDIO_IN_PCM_BUFFER_SIZE is meuserment in half word (u16 = byte/2)
+            switch(period){
+            case(TEST_PERIOD):
+                period = TEST_PERIOD_2;
+                break;
+            case(TEST_PERIOD_2):
+                period = TEST_PERIOD_4;
+                break;
+            case(TEST_PERIOD_4):
+                period = TEST_PERIOD_8;
+                break;
+            case(TEST_PERIOD_8):
+                period = TEST_PERIOD_16;
+                break;
+            case(TEST_PERIOD_16):
+                period = TEST_PERIOD;
+                break;
+            default:
+                period = TEST_PERIOD;
+                break;
+            }
+        }
+        position = 0;
+#endif
         position = 0;
         lseek(fd_psram,(int)position,SEEK_SET);
         read(fd_psram,&buff_out[0],AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD*2);
         position += AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD*2;//AUDIO_IN_PCM_BUFFER_SIZE is meuserment in half word (u16 = byte/2)
-        memset(buff_in,0,AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD*2);
+        thread_is_execute = 2;
+        clock_gettime(CLOCK_REALTIME, &now);
+        m_sec = (u32)now.tv_sec*1000 + (u32)now.tv_nsec/1000000;
         write(fd_sai_out,buff_out,AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD*2);
-        printf("test position %u %u\n",test_position,position);
-        /*for (int i=0;i<AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD/2;i++){
-            printf("%u - %u\n",buff_in[i],buff_in[i+AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD/2]);
-        }*/
-        printf("WRITE passed\n");
-        /*int i;
-        for (i =0; i<SRAM_SIZE ; i+=(AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD*2)){
-            lseek(fd_psram,(int)i,SEEK_SET);
-            read(fd_psram,buff_in,AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD * 2);
-            for (int j=0;j<100;j++){
-                printf("%u - %u \n",j+i,buff_in[j]);
-            }
-        }*/
-
-        //sleep(1);
+        clock_gettime(CLOCK_REALTIME, &now);
+        m_sec_current = (u32)now.tv_sec*1000 + (u32)now.tv_nsec/1000000;
+        printf("cancel playing %u %u, time ms %u \n",test_position,position,(m_sec_current - m_sec));
     }
     close(fd_sai_out);
     close(fd);
-    printf("fd have closed");
+    printf("fd have closed\n");
     return res;
 }
 /**
@@ -178,18 +201,14 @@ int sai_in_cb(void * data, const mcu_event_t * event){
     int res = 1;
     if (event->o_events & MCU_EVENT_FLAG_HALF_TRANSFER){
         if(position < (int)SRAM_SIZE){
-            lseek(fd_psram,(int)position,SEEK_SET);
-            write(fd_psram,&buff_in[0],AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD);
-            position += AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD;//AUDIO_IN_PCM_BUFFER_SIZE is meuserment in half word (u16 = byte/2)
+            event_out |= MCU_EVENT_FLAG_HALF_TRANSFER;
             res = 1;
         }else{
-            res=0;
+            res = 0;
         }
     }else if(event->o_events & MCU_EVENT_FLAG_DATA_READY){
         if(position<(int)SRAM_SIZE){
-            lseek(fd_psram,(int)position,SEEK_SET);
-            write(fd_psram,&buff_in[AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD/2],AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD);
-            position += AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD;//AUDIO_IN_PCM_BUFFER_SIZE is meuserment in half word (u16 = byte/2)
+            event_out |= MCU_EVENT_FLAG_WRITE_COMPLETE;
             res = 1;
         }else{
             res = 0;
@@ -208,57 +227,59 @@ int sai_out_cb(void * data, const mcu_event_t * event){
     if (event->o_events & MCU_EVENT_FLAG_HALF_TRANSFER){
         if(position < (int)SRAM_SIZE){
             event_out |= MCU_EVENT_FLAG_HALF_TRANSFER;
-            position += AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD;//AUDIO_IN_PCM_BUFFER_SIZE is meuserment in half word (u16 = byte/2)
             res = 1;
         }else{
-            res=0;
+            res = 0;
         }
     }else if(event->o_events & MCU_EVENT_FLAG_WRITE_COMPLETE){
         if(position < (int)SRAM_SIZE){
             event_out |= MCU_EVENT_FLAG_WRITE_COMPLETE;
-            position += AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD;//AUDIO_IN_PCM_BUFFER_SIZE is meuserment in half word (u16 = byte/2)
             res = 1;
         }else{
-            res=0;
+            res = 0;
         }
     }
     return res;
 }
 
 void * out_buffer_thread_control(void * args){
-    int * t = (int*)args;
-
-    printf("start out_buffer_thread_control %u...",thread_is_execute);
+    printf("start out_buffer_thread_control %u...\n",thread_is_execute);
     while(thread_is_execute){
-        if (event_out & MCU_EVENT_FLAG_HALF_TRANSFER){
-            event_out = 0;
-            if(position < (int)SRAM_SIZE){
-                lseek(fd_psram,(int)position,SEEK_SET);
-                read(fd_psram,&buff_out[0],AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD);
-                for(u16 i =0;i<(AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD/2);i++){
-                    if((buff_out[i]>0) && (test_position<(AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD/2))){
-                        buff_in[test_position] = position + i;
-                        buff_in[test_position+AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD/2] = buff_out[+i];
-                        test_position++;
-                    }
+        if (thread_is_execute == 1){//read
+            if (event_out & MCU_EVENT_FLAG_HALF_TRANSFER){
+                event_out = 0;
+                if(position < (int)SRAM_SIZE){
+                    lseek(fd_psram,(int)position,SEEK_SET);
+                    write(fd_psram,&buff_in[0],AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD);
+                    position += AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD;//AUDIO_IN_PCM_BUFFER_SIZE is meuserment in half word (u16 = byte/2)
                 }
-            }else{
-                break;
+            }else if(event_out & MCU_EVENT_FLAG_WRITE_COMPLETE){
+                event_out = 0;
+                if(position < (int)SRAM_SIZE){
+                    lseek(fd_psram,(int)position,SEEK_SET);
+                    write(fd_psram,&buff_in[AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD/2],AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD);
+                    position += AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD;//AUDIO_IN_PCM_BUFFER_SIZE is meuserment in half word (u16 = byte/2)
+                }
             }
-        }else if(event_out & MCU_EVENT_FLAG_WRITE_COMPLETE){
-            event_out = 0;
-            if(position < (int)SRAM_SIZE){
-                lseek(fd_psram,(int)position,SEEK_SET);
-                read(fd_psram,&buff_out[AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD/2],AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD);
-                for(u16 i =0;i<(AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD/2);i++){
-                    if((buff_out[AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD/2+i]>0) && (test_position<(AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD/2))){
-                        buff_in[test_position] = position + i;
-                        buff_in[test_position+AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD/2] = buff_out[AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD/2+i];
-                        test_position++;
-                    }
+        }else{
+            if (event_out & MCU_EVENT_FLAG_HALF_TRANSFER){
+                event_out = 0;
+                if(position < (int)SRAM_SIZE){
+                    lseek(fd_psram,(int)position,SEEK_SET);
+                    read(fd_psram,&buff_out[0],AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD);
+                    position += AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD;//AUDIO_IN_PCM_BUFFER_SIZE is meuserment in half word (u16 = byte/2)
+                }else{
+                    break;
                 }
-            }else{
-                break;
+            }else if(event_out & MCU_EVENT_FLAG_WRITE_COMPLETE){
+                event_out = 0;
+                if(position < (int)SRAM_SIZE){
+                    lseek(fd_psram,(int)position,SEEK_SET);
+                    read(fd_psram,&buff_out[AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD/2],AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD);
+                    position += AUDIO_IN_PCM_BUFFER_SIZE_IN_HALF_WORD;//AUDIO_IN_PCM_BUFFER_SIZE is meuserment in half word (u16 = byte/2)
+                }else{
+                    break;
+                }
             }
         }
         sched_yield();
