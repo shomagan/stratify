@@ -11,7 +11,7 @@ int touch_io_init(int fd);
 void     touch_io_write_reg(int fd,uint8_t addr, uint8_t reg, uint8_t value);
 uint8_t touch_io_read_data(int fd,uint8_t addr,uint8_t reg);
 uint16_t touch_io_read_multiple(int fd,uint8_t addr,uint8_t reg,uint8_t *buffer,uint16_t len);
-
+#define DISCOVERY_I2Cx_TIMING                      ((uint32_t)0x40912732)
 int touch_io_init(int fd){
     i2c_attr_t i2c_attr;
     printf("ts i2c file id %d\n",fd);
@@ -21,7 +21,7 @@ int touch_io_init(int fd){
     }
     memset(&i2c_attr,0,sizeof(i2c_attr_t));
     memset(&i2c_attr.pin_assignment, 0xff, sizeof(i2c_pin_assignment_t));
-    i2c_attr.freq =10000;
+    i2c_attr.freq =DISCOVERY_I2Cx_TIMING;
     i2c_attr.slave_addr[0].addr16 = TS_I2C_ADDRESS>>1;
     i2c_attr.o_flags = I2C_FLAG_SET_MASTER|I2C_FLAG_STRETCH_CLOCK;
     ioctl(fd, I_I2C_SETATTR, &i2c_attr);
@@ -30,7 +30,7 @@ int touch_io_init(int fd){
 void touch_io_write_reg(int fd,uint8_t addr, uint8_t reg, uint8_t value){
     i2c_attr_t i2c_attr;
     memset(&i2c_attr,0,sizeof(i2c_attr_t));
-    i2c_attr.o_flags = I2C_FLAG_PREPARE_PTR_DATA|I2C_FLAG_IS_PTR_16;
+    i2c_attr.o_flags = I2C_FLAG_PREPARE_PTR_DATA;
     i2c_attr.slave_addr[0].addr16 = addr>>1;
     ioctl(fd, I_I2C_SETATTR, &i2c_attr);
     lseek(fd,(int)reg,SEEK_SET);
@@ -40,7 +40,7 @@ uint8_t touch_io_read_data(int fd,uint8_t addr,uint8_t reg){
     i2c_attr_t i2c_attr;
     u8 data;
     memset(&i2c_attr,0,sizeof(i2c_attr_t));
-    i2c_attr.o_flags = I2C_FLAG_PREPARE_PTR_DATA|I2C_FLAG_IS_PTR_16;
+    i2c_attr.o_flags = I2C_FLAG_PREPARE_PTR_DATA;
     i2c_attr.slave_addr[0].addr16 = addr>>1;
     ioctl(fd, I_I2C_SETATTR, &i2c_attr);
     lseek(fd,(int)reg,SEEK_SET);
@@ -50,7 +50,7 @@ uint8_t touch_io_read_data(int fd,uint8_t addr,uint8_t reg){
 uint16_t touch_io_read_multiple(int fd,uint8_t addr,uint8_t reg,uint8_t *buffer,uint16_t len){
     i2c_attr_t i2c_attr;
     memset(&i2c_attr,0,sizeof(i2c_attr_t));
-    i2c_attr.o_flags = I2C_FLAG_PREPARE_PTR_DATA|I2C_FLAG_IS_PTR_16;
+    i2c_attr.o_flags = I2C_FLAG_PREPARE_PTR_DATA;
     i2c_attr.slave_addr[0].addr16 = addr>>1;
     ioctl(fd, I_I2C_SETATTR, &i2c_attr);
     lseek(fd,(int)reg,SEEK_SET);
@@ -210,7 +210,7 @@ u8 ft6x06_TS_DetectTouch(u16 DeviceAddr){
   */
 void ft6x06_TS_GetXY(u16 DeviceAddr, u16 *X, u16 *Y){
   u8 regAddress = 0;
-  u8  dataxy[4];
+  u8  dataxy[4] = {0};
   
   if(ft6x06_handle.currActiveTouchIdx < ft6x06_handle.currActiveTouchNb)  {
     switch(ft6x06_handle.currActiveTouchIdx){
@@ -225,11 +225,7 @@ void ft6x06_TS_GetXY(u16 DeviceAddr, u16 *X, u16 *Y){
       break;
     }
     /* Read X and Y positions */
-    for (int i=0;i<4;i++){
-        //dataxy[i] = TS_IO_Read((u8)DeviceAddr, (u8)(regAddress+i));
-        TS_IO_ReadMultiple((u8)DeviceAddr, (u8)(regAddress+i), &dataxy[i], 1);
-    }
-    //TS_IO_ReadMultiple((u8)DeviceAddr, regAddress, dataxy, 4);
+    TS_IO_ReadMultiple((u8)DeviceAddr, regAddress, dataxy, 4);
     /* Send back ready X position to caller */
     *X = (u16)((u16)(dataxy[0] & FT6206_MSB_MASK) << 8) | (u16)(dataxy[1] & FT6206_LSB_MASK);
     /* Send back ready Y position to caller */
